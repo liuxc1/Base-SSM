@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc" xmlns:security="http://www.springframework.org/schema/security"
+	xsi:schemaLocation="
+        http://www.springframework.org/schema/beans
+        http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/tx
+        http://www.springframework.org/schema/tx/spring-tx.xsd
+        http://www.springframework.org/schema/aop
+        http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/context
+        http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/mvc
+        http://www.springframework.org/schema/mvc/spring-mvc.xsd
+        http://www.springframework.org/schema/security
+        http://www.springframework.org/schema/security/spring-security-4.0.xsd
+		">
+	    <!-- 引入配置文件 -->
+	    <context:property-placeholder location="classpath:config/db.properties"/>
+	    <!--配置多个数据源  -->
+	    <bean id="MyOrcale" class="org.apache.commons.dbcp.BasicDataSource" >
+	        <property name="driverClassName" value="${db.driver}" />
+	        <property name="username" value="${db.username}" />
+	        <property name="password" value="${db.password}" />
+	        <property name="url" value="${db.url}" />
+	    </bean>
+	    <!--配置自己的数据源  -->
+	    <bean id="dataSource" class="com.ths.lxc.web.datasource.DataSource">
+	    	<!--默认数据源  -->
+	    	 <property name="defaultTargetDataSource" ref="MyOrcale" />
+	    	 <property name="targetDataSources">
+	    	 		<map key-type="java.lang.String">
+	    	 		   <!--装载多个数据源  -->
+	    	 		   <entry key="ORCALE" value-ref="MyOrcale"></entry>
+	    	 		   <!-- <entry key="ORCALE" value-ref="MyOrcale"></entry> -->
+	    	 		</map>
+	    	 </property>
+	    </bean>
+	    <!--spring集成mybatis 配置sqlSessionFactory  -->
+	   <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean"> 
+            <property name="dataSource" ref="dataSource" /> 
+             <!--将myBatis的核心文件交给Spring处理  -->
+            <property name="configLocation" value="classpath:mybatis/mybatis-config.xml"></property>
+            <!--映射mpper文件  -->
+            <property name="mapperLocations">
+            	<list>
+            		<value>classpath:mybatis/*/mapper-*.xml</value>
+            	</list>
+            </property>
+            <!-- 配置简单别名 -->
+            <property name="typeAliasesPackage"  value="com.ths.lxc.model"/>
+        </bean> 
+       <!--配置mybatis和spring集成的扫描Mapper接口  -->        
+	       <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+				<property name="basePackage" value="com.ths.lxc.dao" />
+				<property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"></property>
+		  </bean>
+
+         
+        <!-- 配置事物管理器 -->
+		<bean id="transactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+			<property name="dataSource" ref="dataSource" />
+		</bean>
+		
+	 <!--引入外部的配置文件  -->
+	 <import resource="classpath:spring/applicationContext-*.xml"/>
+		<!--配置切入点  -->
+	   <aop:config>
+	   		<aop:pointcut expression="execution(* com.ths.lxc.service.*.*(..))" id="MyPointcut"/>
+	   		<aop:advisor advice-ref="myAdvice" pointcut-ref="MyPointcut"/>
+	   </aop:config>
+	   <!-- 事物 -->
+	   <tx:advice id="myAdvice">
+	   		<tx:attributes>
+	   			<tx:method name="*"/>
+	   			<tx:method name="get*" read-only="true" propagation="SUPPORTS"/>
+	   			<tx:method name="query*" read-only="true" propagation="SUPPORTS"/>
+	   			<tx:method name="find*" read-only="true" propagation="SUPPORTS"/>
+	   		</tx:attributes>
+	   </tx:advice>
+</beans>
